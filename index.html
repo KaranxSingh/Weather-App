@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Advanced Weather App</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: linear-gradient(to right, #667eea, #764ba2);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+      color: white;
+    }
+    .container {
+      background: rgba(255,255,255,0.1);
+      backdrop-filter: blur(10px);
+      padding: 20px;
+      border-radius: 20px;
+      width: 320px;
+      text-align: center;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+    }
+    input {
+      width: 80%;
+      padding: 10px;
+      border-radius: 8px;
+      border: none;
+      margin-bottom: 10px;
+    }
+    button {
+      padding: 10px 15px;
+      border: none;
+      border-radius: 8px;
+      background: #00c6ff;
+      color: white;
+      cursor: pointer;
+    }
+    button:hover { background: #0072ff; }
+    .weather img { width: 80px; }
+    .loader {
+      border: 4px solid #f3f3f3;
+      border-top: 4px solid #00c6ff;
+      border-radius: 50%;
+      width: 30px;
+      height: 30px;
+      animation: spin 1s linear infinite;
+      margin: 10px auto;
+    }
+    @keyframes spin { 100% { transform: rotate(360deg); } }
+    .forecast { display: flex; justify-content: space-between; margin-top: 10px; }
+    .day { font-size: 12px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>🌤 Weather App</h2>
+    <input type="text" id="city" placeholder="Enter city" />
+    <br>
+    <button onclick="getWeather()">Search</button>
+    <div id="loader"></div>
+    <div class="weather" id="weatherResult"></div>
+    <div class="forecast" id="forecast"></div>
+  </div>
+
+<script>
+const apiKey = "3e7cedceab46ef8f994c7dfb9b4ccfa3";
+
+function showLoader(show) {
+  document.getElementById("loader").innerHTML = show ? '<div class="loader"></div>' : '';
+}
+
+async function getWeather() {
+  const city = document.getElementById("city").value;
+  const result = document.getElementById("weatherResult");
+  const forecastDiv = document.getElementById("forecast");
+
+  if (!city) {
+    result.innerHTML = "Enter city name";
+    return;
+  }
+
+  showLoader(true);
+
+  try {
+    const res = await fetch(`https://api.openweathermap.org/data/2.5/weather?q=${city}&appid=${apiKey}&units=metric`);
+    const data = await res.json();
+
+    if (data.cod !== 200) {
+      result.innerHTML = "City not found";
+      showLoader(false);
+      return;
+    }
+
+    const icon = `https://openweathermap.org/img/wn/${data.weather[0].icon}@2x.png`;
+
+    result.innerHTML = `
+      <h3>${data.name}</h3>
+      <img src="${icon}" />
+      <p>${data.main.temp}°C</p>
+      <p>${data.weather[0].description}</p>
+      <p>Humidity: ${data.main.humidity}%</p>
+      <p>Wind: ${data.wind.speed} m/s</p>
+    `;
+
+    // 5-day forecast
+    const res2 = await fetch(`https://api.openweathermap.org/data/2.5/forecast?q=${city}&appid=${apiKey}&units=metric`);
+    const data2 = await res2.json();
+
+    forecastDiv.innerHTML = data2.list.filter((_, i) => i % 8 === 0).slice(0,5).map(item => {
+      const date = new Date(item.dt_txt);
+      return `
+        <div class="day">
+          <p>${date.toLocaleDateString('en-US', { weekday: 'short' })}</p>
+          <p>${item.main.temp}°C</p>
+        </div>
+      `;
+    }).join('');
+
+  } catch (err) {
+    result.innerHTML = "Error fetching data";
+  }
+
+  showLoader(false);
+}
+
+// Auto location
+navigator.geolocation.getCurrentPosition(async pos => {
+  const { latitude, longitude } = pos.coords;
+  const res = await fetch(`https://api.openweathermap.org/data/2.5/weather?lat=${latitude}&lon=${longitude}&appid=${apiKey}&units=metric`);
+  const data = await res.json();
+  document.getElementById("weatherResult").innerHTML = `
+    <h3>${data.name} (Your Location)</h3>
+    <p>${data.main.temp}°C</p>
+    <p>${data.weather[0].description}</p>
+  `;
+});
+</script>
+</body>
+</html>
